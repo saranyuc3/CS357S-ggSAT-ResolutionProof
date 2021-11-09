@@ -16,22 +16,25 @@ class Solver:
     def __init__(self, filename, proof, suffix):
         logger.info('========= create pysat from %s =========', filename)
         self.filename = filename
-        self.cnf, self.vars = Solver.read_file(filename, proof)
+        self.proof_cnf, self.proof_vars, self.cnf, self.vars = Solver.read_file(filename, proof)
         self.decision_list = list(map(int, suffix.split(',')))
         self.learnts = set()
         self.assigns = dict.fromkeys(list(self.vars), UNASSIGN)
+        self.proof_assigns = dict.fromkeys(list(self.proof_vars), UNASSIGN)
         self.level = 0
+        self.proof_level = 0
         self.nodes = dict((k, ImplicationNode(k, UNASSIGN)) for k in list(self.vars))
         self.branching_vars = set()
         self.branching_history = {}  # level -> branched variable
         self.propagate_history = {}  # level -> propagate variables list
+        self.proof_propagate_history = {}  # level -> propagate variables list
         self.branching_count = 0
-
+      
     def run(self):
-        self.Update()
-        lvl, learnt = self.proofred()
-        return lvl, learnt
-
+         self.proof_transform()
+         print(self.proof_cnf)
+         
+         
     def Update(self):
         for bt_var in self.decision_list:
            self.level += 1
@@ -44,6 +47,73 @@ class Solver:
            self.preprocess()              		
 
 
+    def proof_transform(self):
+        print(self.cnf)
+        print(self.proof_cnf)
+        self.unit_prop_path_conditions(1)
+        print(self.assigns)
+        self.unit_prop_path_conditions(0)
+        print(self.proof_assigns)
+        clauses = set() 
+        for clause in self.proof_cnf:
+            temp_clause = list(clause)
+            flag = 1
+            for lit in clause:
+                 if abs(lit) not in self.proof_assigns.keys():
+                       pass
+                 elif lit<0 and self.proof_assigns[abs(lit)]:  
+                       temp_clause.remove(lit)
+                 elif lit>0 and not self.proof_assigns[abs(lit)]:  
+                       temp_clause.remove(lit)
+                 else:
+                       flag = 0
+                       break 
+            if flag:
+                 clauses.update(frozenset(temp_clause))       
+        
+        self.proof_cnf = clauses
+        
+        
+                             
+    def unit_prop_path_conditions(self, flag: bool):
+        unit_clauses = set()
+        for lit in self.decision_list:
+            unit_clauses.add(frozenset([lit]))
+        while True:
+            propagate_queue = deque()
+            if flag:
+                 cls = [x for x in self.cnf.union(unit_clauses)]
+            else:
+                 cls = [x for x in self.proof_cnf]
+                 for x in self.proof_assigns.keys():
+                    cls.append(frozenset([x]) if self.proof_assigns[x] else frozenset([-x]))
+            for clause in cls:
+                c_val = self.compute_clause(clause) if flag else self.proof_compute_clause(clause) 
+                if c_val == TRUE:
+                    continue
+                if c_val == FALSE:
+                    return clause
+                else:
+                    is_unit, unit_lit = self.is_unit_clause(clause) if flag else self.is_unit_clause(clause) 
+                    if not is_unit:
+                        continue
+                    prop_pair = (unit_lit, clause)
+                    if prop_pair not in propagate_queue:
+                        propagate_queue.append(prop_pair)
+            if not propagate_queue:
+                return None
+            logger.fine('propagate_queue: %s', propagate_queue)
+
+            for prop_lit, clause in propagate_queue:
+                prop_var = abs(prop_lit)
+                if flag:
+                    self.assigns[prop_var] = TRUE if prop_lit > 0 else FALSE
+                    logger.fine('propagated %s to be %s', prop_var, self.assigns[prop_var])
+                else:
+                    self.proof_assigns[prop_var] = TRUE if prop_lit > 0 else FALSE
+                    logger.fine('propagated %s to be %s', prop_var, self.proof_assigns[prop_var])
+	
+
     def proofred(self):
         self.preprocess()
         conf_cls = self.unit_propagate()
@@ -52,7 +122,7 @@ class Solver:
              return self.conflict_analyze(conf_cls)
         else:
              raise FileFormatError('Sub problem not UNSAT')
-	
+
 
 
     def preprocess(self):
@@ -76,18 +146,7 @@ class Solver:
                          line.startswith('0'))
                     and line != '\n')
             ]
-
-        with open(proof) as f:
-            lines2 = [
-                line.strip().split() for line in f.readlines()
-                if (not (line.startswith('0') or
-                         line.startswith('d') or
-                         line.startswith('c'))
-                    and line != '\n')
-            ]
             
-        lines.extend(lines2)
-
         if lines[0][:2] == ['p', 'cnf']:
             count_literals, count_clauses = map(int, lines[0][-2:])
         else:
@@ -103,17 +162,39 @@ class Solver:
             literals.update(map(abs, clause))
             clauses.add(clause)
 
-#        if len(literals) != count_literals or len(lines) - 1 != count_clauses:
-#            raise FileFormatError(
-#                'Unmatched literal count or clause count.'
-#                ' Literals expected: {}, actual: {}.'
-#               ' Clauses expected: {}, actual: {}.'
-#                    .format(count_literals, len(literals), count_clauses, len(clauses)))
+        if len(literals) != count_literals or len(lines) - 1 != count_clauses:
+            raise FileFormatError(
+                'Unmatched literal count or clause count.'
+                ' Literals expected: {}, actual: {}.'
+                ' Clauses expected: {}, actual: {}.'
+                    .format(count_literals, len(literals), count_clauses, len(clauses)))
 
         logger.fine('clauses: %s', clauses)
         logger.fine('literals: %s', literals)               
+ 
+ 
+        with open(proof) as f:
+            lines = [
+                line.strip().split() for line in f.readlines()
+                if (not (line.startswith('0') or
+                         line.startswith('d') or
+                         line.startswith('c'))
+                    and line != '\n')
+            ]
+            
+        proof_literals = set()
+        proof_clauses = set()
+
+        for line in lines:
+            if line[-1] != '0':
+                raise FileFormatError('Each line of clauses must end with 0.')
+            clause = frozenset(map(int, line[:-1]))
+            proof_literals.update(map(abs, clause))
+            proof_clauses.add(clause)
+ 
   
-        return clauses, literals
+        return proof_clauses, proof_literals, clauses, literals
+
 
     def compute_value(self, literal):
         """
@@ -127,8 +208,21 @@ class Solver:
         logger.finest('value: %s', value)
         return value
 
+    def proof_compute_value(self, literal):
+        value = self.proof_assigns[abs(literal)]
+        value = value if value == UNASSIGN else value ^ (literal < 0)
+        logger.finest('value: %s', value)
+        return value
+
+
     def compute_clause(self, clause):
         values = list(map(self.compute_value, clause))
+        value = UNASSIGN if UNASSIGN in values else max(values)
+        logger.finest('clause: %s, value: %s', clause, value)
+        return value
+
+    def proof_compute_clause(self, clause):
+        values = list(map(self.proof_compute_value, clause))
         value = UNASSIGN if UNASSIGN in values else max(values)
         logger.finest('clause: %s, value: %s', clause, value)
         return value
@@ -136,7 +230,34 @@ class Solver:
     def compute_cnf(self):
         logger.fine('cnf: %s', self.cnf)
         logger.fine('assignments: %s', self.assigns)
-        return min(map(self.compute_clause, self.cnf))
+        return min(map(self.proof_compute_clause, self.cnf))
+
+    def proof_is_unit_clause(self, clause):
+        """
+        Checks if clause is a unit clause. If and only if there is
+        exactly 1 literal unassigned, and all the other literals having
+        value of 0.
+            :param clause: set of ints
+            :returns: (is_clause_a_unit, the_literal_to_assign, the clause)
+        """
+        logger.finest('clause: %s', clause)
+        values = []
+        unassigned = None
+
+        for literal in clause:
+            value = self.proof_compute_value(literal)
+            logger.finest('value of %s: %s', literal, value)
+            values.append(value)
+            unassigned = literal if value == UNASSIGN else unassigned
+
+        check = ((values.count(FALSE) == len(clause) - 1 and
+                  values.count(UNASSIGN) == 1) or
+                 (len(clause) == 1
+                  and values.count(UNASSIGN) == 1))
+        logger.finest('%s: %s', clause, (check, unassigned))
+        logger.finest('assignments: %s', self.assigns)
+        return check, unassigned
+
 
     def is_unit_clause(self, clause):
         """

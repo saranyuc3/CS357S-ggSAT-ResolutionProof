@@ -54,6 +54,5 @@ if __name__ == '__main__':
       print(files)
       suffix = files.lstrip(filename+',').rstrip('.sol')
       solver = getattr(solvers, args.heuristics)(path+'/'+filename, path+'/'+files, suffix)
-      lvl, learnt = solver.run()
-      print(lvl)
-      print(learnt)
+      solver.run()
+
