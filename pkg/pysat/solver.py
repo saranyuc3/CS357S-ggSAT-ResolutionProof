@@ -31,7 +31,9 @@ class Solver:
         self.branching_count = 0
       
     def run(self):
+         self.unit_prop_path_conditions()
          self.proof_transform()
+         self.assigns = dict.fromkeys(list(self.vars), UNASSIGN)
          print(self.proof_cnf)
          
          
@@ -48,18 +50,13 @@ class Solver:
 
 
     def proof_transform(self):
-        print(self.cnf)
-        print(self.proof_cnf)
-        self.unit_prop_path_conditions(1)
-        print(self.assigns)
-        self.unit_prop_path_conditions(0)
-        print(self.proof_assigns)
-        clauses = set() 
         for clause in self.proof_cnf:
             temp_clause = list(clause)
             flag = 1
             for lit in clause:
                  if abs(lit) not in self.proof_assigns.keys():
+                       pass
+                 elif self.proof_assigns[abs(lit)]==-1:
                        pass
                  elif lit<0 and self.proof_assigns[abs(lit)]:  
                        temp_clause.remove(lit)
@@ -68,33 +65,27 @@ class Solver:
                  else:
                        flag = 0
                        break 
+            self.proof_cnf.remove(clause)       
             if flag:
-                 clauses.update(frozenset(temp_clause))       
-        
-        self.proof_cnf = clauses
+                 self.proof_cnf.add(clause)
         
         
                              
-    def unit_prop_path_conditions(self, flag):
+    def unit_prop_path_conditions(self):
         unit_clauses = set()
         for lit in self.decision_list:
             unit_clauses.add(frozenset([lit]))
         while True:
             propagate_queue = deque()
-            if flag:
-                 cls = [x for x in self.cnf.union(unit_clauses)]
-            else:
-                 cls = [x for x in self.proof_cnf]
-                 for x in self.proof_assigns.keys():
-                    cls.append(frozenset([x]) if self.proof_assigns[x] else frozenset([-x]))
+            cls = [x for x in self.cnf.union(unit_clauses)]
             for clause in cls:
-                c_val = self.compute_clause(clause) if flag else self.proof_compute_clause(clause) 
+                c_val = self.compute_clause(clause) 
                 if c_val == TRUE:
                     continue
                 if c_val == FALSE:
                     return clause
                 else:
-                    is_unit, unit_lit = self.is_unit_clause(clause) if flag else self.proof_is_unit_clause(clause) 
+                    is_unit, unit_lit = self.is_unit_clause(clause) 
                     if not is_unit:
                         continue
                     prop_pair = (unit_lit, clause)
@@ -103,15 +94,10 @@ class Solver:
             if not propagate_queue:
                 return None
             logger.fine('propagate_queue: %s', propagate_queue)
-
             for prop_lit, clause in propagate_queue:
                 prop_var = abs(prop_lit)
-                if flag:
-                    self.assigns[prop_var] = TRUE if prop_lit > 0 else FALSE
-                    logger.fine('propagated %s to be %s', prop_var, self.assigns[prop_var])
-                else:
-                    self.proof_assigns[prop_var] = TRUE if prop_lit > 0 else FALSE
-                    logger.fine('propagated %s to be %s', prop_var, self.proof_assigns[prop_var])
+                self.assigns[prop_var] = TRUE if prop_lit > 0 else FALSE
+                logger.fine('propagated %s to be %s', prop_var, self.assigns[prop_var])
 	
 
     def proofred(self):
