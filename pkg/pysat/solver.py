@@ -75,7 +75,7 @@ class Solver:
         
         
                              
-    def unit_prop_path_conditions(self, flag: bool):
+    def unit_prop_path_conditions(self, flag):
         unit_clauses = set()
         for lit in self.decision_list:
             unit_clauses.add(frozenset([lit]))
@@ -94,7 +94,7 @@ class Solver:
                 if c_val == FALSE:
                     return clause
                 else:
-                    is_unit, unit_lit = self.is_unit_clause(clause) if flag else self.is_unit_clause(clause) 
+                    is_unit, unit_lit = self.is_unit_clause(clause) if flag else self.proof_is_unit_clause(clause) 
                     if not is_unit:
                         continue
                     prop_pair = (unit_lit, clause)

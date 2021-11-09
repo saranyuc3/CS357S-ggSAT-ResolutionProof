@@ -55,12 +55,12 @@ file_name = sys.argv[1].split('/')[-1]
 
 with open(sys.argv[2]+'/'+file_name.rstrip('.cnf')+suffix+'.cnf','w') as f:
     f.write('p cnf ' + str(count_literals) + ' '+ str(count_clauses)+'\n') 
+    for i in dec_lit:
+       f.write(str(i)+' 0\n')
     for i in clauses:
        for j in i:
            f.write(str(j)+' ')
        f.write('0\n')
-    for i in dec_lit:
-       f.write(str(i)+' 0\n')
        
 os.system('./cadical '+sys.argv[2]+'/'+file_name.rstrip('.cnf')+suffix+'.cnf' +' --no-binary ' + sys.argv[2]+'/'+file_name.rstrip('.cnf')+suffix+'.sol')            
 

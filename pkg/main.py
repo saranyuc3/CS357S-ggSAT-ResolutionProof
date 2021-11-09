@@ -47,12 +47,12 @@ if __name__ == '__main__':
     filelist = []
     
     for file in os.listdir(path):
-             if file.startswith(filename.rstrip('.cnf')) and file.endswith('.sol'):
+             if file.startswith(filename.removesuffix('.cnf')) and file.endswith('.sol'):
                 filelist.append(file)
                 
     for files in filelist:            
       print(files)
-      suffix = files.lstrip(filename+',').rstrip('.sol')
+      suffix = files.removeprefix(filename.removesuffix('.cnf')+',').removesuffix('.sol')
       solver = getattr(solvers, args.heuristics)(path+'/'+filename, path+'/'+files, suffix)
       solver.run()
 
