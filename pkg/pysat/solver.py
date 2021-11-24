@@ -34,7 +34,12 @@ class Solver:
          self.unit_prop_path_conditions()
          self.proof_transform()
          self.assigns = dict.fromkeys(list(self.vars), UNASSIGN)
-         print(self.proof_cnf)
+         for elem in self.proof_cnf:
+             for e in elem:
+                print(e,end=" ")
+             print("0")
+
+         #print(self.proof_cnf)
          
          
     def Update(self):
