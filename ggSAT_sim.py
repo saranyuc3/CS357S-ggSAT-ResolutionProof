@@ -50,6 +50,23 @@ for lit in dec_lit:
     suffix = suffix+','+str(lit)
 
 
+new_clause_set = []
+
+for clause in clauses:
+    for lit in dec_lit:
+       if -lit in clause:
+           clause.remove(-lit)
+
+for clause in clauses:
+       flag = 1
+       for lit in clause:
+          if lit in dec_lit:
+              flag = 0
+              break
+       if flag == 1:
+           new_clause_set.append(clause)
+
+count_clauses_p = len(new_clause_set)
 
 file_name = sys.argv[1].split('/')[-1]
 
@@ -61,6 +78,18 @@ with open(sys.argv[2]+'/'+file_name.rstrip('.cnf')+suffix+'.cnf','w') as f:
        for j in i:
            f.write(str(j)+' ')
        f.write('0\n')
+
+with open(sys.argv[2]+'/'+file_name.rstrip('.cnf')+suffix+'_p.cnf','w') as f:
+    f.write('p cnf ' + str(count_literals) + ' '+ str(count_clauses_p)+'\n') 
+    for i in new_clause_set:
+       if i!=[]:
+           for j in i:
+               f.write(str(j)+' ')
+           f.write('0\n')
+
        
 os.system('./cadical '+sys.argv[2]+'/'+file_name.rstrip('.cnf')+suffix+'.cnf' +' --no-binary ' + sys.argv[2]+'/'+file_name.rstrip('.cnf')+suffix+'.sol')            
+
+
+os.system('./drat-trim '+sys.argv[2]+'/'+file_name.rstrip('.cnf')+suffix+'_p.cnf ' + sys.argv[2]+'/'+file_name.rstrip('.cnf')+suffix+'.sol')            
 
