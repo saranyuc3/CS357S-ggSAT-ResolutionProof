@@ -19,6 +19,11 @@ if __name__ == '__main__':
         nargs='?',
         help='path of .cnf file')
     parser.add_argument(
+        'decisions',
+        type=str,
+        nargs='?',
+        help='decisions taken by Look-Ahead solver in one branch')
+    parser.add_argument(
         'heuristics',
         type=str,
         nargs='?',
@@ -36,23 +41,11 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if args.filename is None:
+    if args.filename is None or args.decisions is None:
         parser.print_help()
         exit()
 
-    filename = args.filename.split('/')
-    path = '/'.join(filename[:-1])
-    filename = filename[-1]
-    
-    filelist = []
-    
-    for file in os.listdir(path):
-             if file.startswith(filename.removesuffix('.cnf')) and file.endswith('.sol'):
-                filelist.append(file)
-                
-    for files in filelist:            
-      print(files)
-      suffix = files.removeprefix(filename.removesuffix('.cnf')+',').removesuffix('.sol')
-      solver = getattr(solvers, args.heuristics)(path+'/'+filename, path+'/'+files, suffix)
-      solver.run()
-
+    solver.logger.setLevel(args.loglevel)
+    solver = getattr(solvers, args.heuristics)(args.filename, args.decisions)
+    _, _, answer = solver.run(args.decisions)
+    print(answer)
