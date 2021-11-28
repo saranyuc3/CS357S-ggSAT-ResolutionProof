@@ -1,9 +1,44 @@
-"""
-SAT solver using CDCL
-"""
 import os
 import sys
 import random
+from subprocess import call
+import multiprocessing
+
+tree = {}
+
+def terminal(string):
+    os.system(string)
+
+def buildtree(literals, parent, depth):    
+    global tree
+    global paths
+    dec_lit1 = random.choice(literals)
+    dec_lit2 = random.choice(literals)
+    tree[parent][0] = dec_lit1
+    tree[parent][1] = dec_lit2    
+    stopL = random.randint(0, 1)
+    stopR = random.randint(0, 1)
+
+    path = [-lit if lit==parent else lit for lit in tree[parent][2]]
+    path.append(dec_lit1)
+    tree[dec_lit1] = [None,None,path]
+    path = tree[parent][2].copy()
+    path.append(dec_lit2)
+    tree[dec_lit2] = [None,None,path]
+
+
+    if stopL==0 and len(tree[parent][2])<depth:
+        temp_lit = literals.copy()
+        temp_lit.remove(dec_lit1)
+        buildtree(temp_lit,dec_lit1,depth)
+
+    if stopR==0 and len(tree[parent][2])<depth:
+        temp_lit = literals.copy()
+        temp_lit.remove(dec_lit2)
+        buildtree(temp_lit,dec_lit2,depth)    	  
+
+    return 
+    	
 
 with open(sys.argv[1]) as f:
     lines = [
@@ -21,75 +56,45 @@ else:
     raise FileFormatError('Number of literals and clauses are not declared properly.')
 
 literals = set()
-clauses = []
 
 for line in lines[1:]:
     if line[-1] != '0':
         raise FileFormatError('Each line of clauses must end with 0.')
     clause = list(map(int, line[:-1]))
     literals.update(map(abs, clause))
-    clauses.append(clause)
 
-size = random.randint(1,len(literals))
+depth = min(int(sys.argv[2]),random.randint(1,len(literals)))
 
-dec_lit = random.sample(literals, size%10)
+dec_lit = random.choice(list(literals))
 
+tree[dec_lit] = [None,None,[dec_lit]]
 
-for lit in range(size%10):
-     if random.randint(0, 1):
-          dec_lit[lit] = -dec_lit[lit]
+temp_lit = [i for i in literals]
 
+temp_lit.remove(dec_lit)
 
-               
+buildtree(temp_lit, dec_lit, min(int(sys.argv[2])-1,len(literals)-1))
 
-count_clauses += len(dec_lit)
+paths = []
 
-suffix = ''
+for key in tree.keys():
+    if tree[key][0:2]==[None,None]:
+    	paths.append(tree[key][2].copy())
+    	temp = tree[key][2][:-1].copy()
+    	temp.append(-key)
+    	paths.append(temp)
 
-for lit in dec_lit:
-    suffix = suffix+','+str(lit)
+jobs = []
+for path in paths:
+	if sys.argv[3]=='s':
+		terminal('python3 -m pkg.main '+sys.argv[1]+' '+"_".join([str(lit) for lit in path]).replace('-','n'))
+	if sys.argv[3]=='p':
+		p = multiprocessing.Process(target=terminal, args=('python3 -m pkg.main '+sys.argv[1]+' '+"_".join([str(lit) for lit in path]).replace('-','n'),))
+		jobs.append(p)
+		p.start()
 
+if sys.argv[3]=='p':
+	for proc in jobs:
+		proc.join()
 
-new_clause_set = []
-
-for clause in clauses:
-    for lit in dec_lit:
-       if -lit in clause:
-           clause.remove(-lit)
-
-for clause in clauses:
-       flag = 1
-       for lit in clause:
-          if lit in dec_lit:
-              flag = 0
-              break
-       if flag == 1:
-           new_clause_set.append(clause)
-
-count_clauses_p = len(new_clause_set)
-
-file_name = sys.argv[1].split('/')[-1]
-
-with open(sys.argv[2]+'/'+file_name.rstrip('.cnf')+suffix+'.cnf','w') as f:
-    f.write('p cnf ' + str(count_literals) + ' '+ str(count_clauses)+'\n') 
-    for i in dec_lit:
-       f.write(str(i)+' 0\n')
-    for i in clauses:
-       for j in i:
-           f.write(str(j)+' ')
-       f.write('0\n')
-
-with open(sys.argv[2]+'/'+file_name.rstrip('.cnf')+suffix+'_p.cnf','w') as f:
-    f.write('p cnf ' + str(count_literals) + ' '+ str(count_clauses_p)+'\n') 
-    for i in new_clause_set:
-       if i!=[]:
-           for j in i:
-               f.write(str(j)+' ')
-           f.write('0\n')
-
-       
-os.system('./cadical '+sys.argv[2]+'/'+file_name.rstrip('.cnf')+suffix+'.cnf' +' --no-binary ' + sys.argv[2]+'/'+file_name.rstrip('.cnf')+suffix+'.sol')            
-
-
-os.system('./drat-trim '+sys.argv[2]+'/'+file_name.rstrip('.cnf')+suffix+'_p.cnf ' + sys.argv[2]+'/'+file_name.rstrip('.cnf')+suffix+'.sol')            
 

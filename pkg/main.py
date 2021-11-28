@@ -44,7 +44,9 @@ if __name__ == '__main__':
     if args.filename is None or args.decisions is None:
         parser.print_help()
         exit()
-
+    args.decisions = args.decisions.replace('n','-')
+    print('problem file: ',args.filename.split('/')[-1])
+    print('decision path: ',args.decisions)
     solver.logger.setLevel(args.loglevel)
     solver = getattr(solvers, args.heuristics)(args.filename, args.decisions)
     _, _, answer = solver.run(args.decisions)
