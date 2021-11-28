@@ -95,8 +95,6 @@ buildtree(temp_lit, str(dec_lit), min(int(sys.argv[2])-1,len(literals)-1))
 
 paths = []
 
-print(tree)
-
 
 for key in tree.keys():
     if tree[key][0:2]==[None,None]:
