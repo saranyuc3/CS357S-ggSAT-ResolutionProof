@@ -19,6 +19,11 @@ if __name__ == '__main__':
         nargs='?',
         help='path of .cnf file')
     parser.add_argument(
+        'out_dir',
+        type=str,
+        nargs='?',
+        help='Dir to dump output files')
+    parser.add_argument(
         'decisions',
         type=str,
         nargs='?',
@@ -49,5 +54,5 @@ if __name__ == '__main__':
     print('decision path: ',args.decisions)
     solver.logger.setLevel(args.loglevel)
     solver = getattr(solvers, args.heuristics)(args.filename, args.decisions)
-    _, _, answer = solver.run(args.decisions)
+    _, _, answer = solver.run(args.decisions, args.out_dir)
     print(answer)

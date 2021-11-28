@@ -85,17 +85,18 @@ for key in tree.keys():
     	paths.append(temp)
 
 jobs = []
+os.system('mkdir '+sys.argv[3])
 for path in paths:
-	if sys.argv[3]=='s':
-		terminal('python3 -m pkg.main '+sys.argv[1]+' '+"_".join([str(lit) for lit in path]).replace('-','n'))
-	elif sys.argv[3]=='p':
-		p = multiprocessing.Process(target=terminal, args=('python3 -m pkg.main '+sys.argv[1]+' '+"_".join([str(lit) for lit in path]).replace('-','n'),))
+	if sys.argv[4]=='s':
+		terminal('python3 -m pkg.main '+sys.argv[1]+' '+sys.argv[3]+' '+"_".join([str(lit) for lit in path]).replace('-','n'))
+	elif sys.argv[4]=='p':
+		p = multiprocessing.Process(target=terminal, args=('python3 -m pkg.main '+sys.argv[1]+' '+sys.argv[3]+' '+"_".join([str(lit) for lit in path]).replace('-','n'),))
 		jobs.append(p)
 		p.start()
 	else:
 		sys.exit('Choose either p (parallel exec) or s (sequential exec)')	
 
-if sys.argv[3]=='p':
+if sys.argv[4]=='p':
 	for proc in jobs:
 		proc.join()
 

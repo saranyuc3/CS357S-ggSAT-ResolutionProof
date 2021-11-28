@@ -27,10 +27,11 @@ class Solver:
         self.propagate_history = {}  # level -> propagate variables list
         self.branching_count = 0
 
-    def run(self, decisions):
+    def run(self, decisions, out_dir):
         start_time = time.time()
-        pf = open(re.sub('\.(\S)+','_'+decisions+'.proof',self.filename),'w')
-        respf = open(re.sub('\.(\S)+','_'+decisions+'.res',self.filename),'w')
+        dec = decisions.replace('-','n')
+        pf = open(out_dir+dec+'.proof','w')
+        respf = open(out_dir+dec+'.res','w')
         respf.write('%RESA32 '+str(len(self.vars))+' '+str(self.Gcnt)+'\n\n')
         sat = self.solve(pf, respf)
         pf.write('0\n')
