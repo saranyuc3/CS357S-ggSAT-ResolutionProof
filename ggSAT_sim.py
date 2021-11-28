@@ -43,8 +43,6 @@ def buildtree(literals, parent, depth):
     path.append(dec_lit2)
     tree[nw_dec_lit2] = [None,None,path]
         
-    print(tree)
-
     if stopL==0 and len(tree[parent][2])<depth:
         temp_lit = literals.copy()
         temp_lit.remove(dec_lit1)
