@@ -14,28 +14,46 @@ def buildtree(literals, parent, depth):
     global paths
     dec_lit1 = random.choice(literals)
     dec_lit2 = random.choice(literals)
-    tree[parent][0] = dec_lit1
-    tree[parent][1] = dec_lit2    
+    if parent in tree.keys():
+          tree[parent][0] = dec_lit1
+          tree[parent][1] = dec_lit2    
     stopL = random.randint(0, 1)
     stopR = random.randint(0, 1)
 
-    path = [-lit if lit==parent else lit for lit in tree[parent][2]]
+    parent_clean = parent
+    parent_clean = parent_clean.replace('$','')
+    path = ['-'+lit if lit==parent_clean else lit for lit in tree[parent][2]]
     path.append(dec_lit1)
-    tree[dec_lit1] = [None,None,path]
+    nw_dec_lit1 = dec_lit1
+    nw_dec_lit2 = dec_lit2
+    while(1):
+          if nw_dec_lit1 in tree.keys():
+                nw_dec_lit1 = nw_dec_lit1+'$'
+          else:
+                break
+   
+    tree[nw_dec_lit1] = [None,None,path]
+    while(1):
+          if nw_dec_lit2 in tree.keys():
+                nw_dec_lit2 = nw_dec_lit2+'$'
+          else:
+                break
+
     path = tree[parent][2].copy()
     path.append(dec_lit2)
-    tree[dec_lit2] = [None,None,path]
-
+    tree[nw_dec_lit2] = [None,None,path]
+        
+    print(tree)
 
     if stopL==0 and len(tree[parent][2])<depth:
         temp_lit = literals.copy()
         temp_lit.remove(dec_lit1)
-        buildtree(temp_lit,dec_lit1,depth)
+        buildtree(temp_lit,nw_dec_lit1,depth)
 
     if stopR==0 and len(tree[parent][2])<depth:
         temp_lit = literals.copy()
         temp_lit.remove(dec_lit2)
-        buildtree(temp_lit,dec_lit2,depth)    	  
+        buildtree(temp_lit,nw_dec_lit2,depth)    	  
 
     return 
     	
@@ -67,21 +85,24 @@ depth = min(int(sys.argv[2]),random.randint(1,len(literals)))
 
 dec_lit = random.choice(list(literals))
 
-tree[dec_lit] = [None,None,[dec_lit]]
+tree[str(dec_lit)] = [None,None,[str(dec_lit)]]
 
-temp_lit = [i for i in literals]
+temp_lit = [str(i) for i in literals]
 
-temp_lit.remove(dec_lit)
+temp_lit.remove(str(dec_lit))
 
-buildtree(temp_lit, dec_lit, min(int(sys.argv[2])-1,len(literals)-1))
+buildtree(temp_lit, str(dec_lit), min(int(sys.argv[2])-1,len(literals)-1))
 
 paths = []
+
+print(tree)
+
 
 for key in tree.keys():
     if tree[key][0:2]==[None,None]:
     	paths.append(tree[key][2].copy())
     	temp = tree[key][2][:-1].copy()
-    	temp.append(-key)
+    	temp.append('-'+key.replace('$',''))
     	paths.append(temp)
 
 jobs = []

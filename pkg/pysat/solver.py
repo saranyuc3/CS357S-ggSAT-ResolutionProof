@@ -32,6 +32,7 @@ class Solver:
     def run(self, decisions, out_dir):
         start_time = time.time()
         dec = decisions.replace('-','n')
+        print(dec)
         pf = open(out_dir+dec+'.proof','w')
         respf = open(out_dir+dec+'.res','w')
         map_cc = open(out_dir+dec+'.json','w')
