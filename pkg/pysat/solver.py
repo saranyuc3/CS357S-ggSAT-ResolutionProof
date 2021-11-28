@@ -4,6 +4,7 @@ SAT solver using CDCL
 import os
 import re
 import time
+import json
 from collections import deque
 from pkg.utils.constants import TRUE, FALSE, UNASSIGN
 from pkg.utils.exceptions import FileFormatError
@@ -19,6 +20,7 @@ class Solver:
         self.filename = filename
         self.cnf, self.res_map, self.vars, self.Gcnt = Solver.read_file(filename, decisions)
         self.learnts = set()
+        self.map_cc = {}
         self.assigns = dict.fromkeys(list(self.vars), UNASSIGN)
         self.level = 0
         self.nodes = dict((k, ImplicationNode(k, UNASSIGN)) for k in list(self.vars))
@@ -32,9 +34,11 @@ class Solver:
         dec = decisions.replace('-','n')
         pf = open(out_dir+dec+'.proof','w')
         respf = open(out_dir+dec+'.res','w')
+        map_cc = open(out_dir+dec+'.json','w')
         respf.write('%RESA32 '+str(len(self.vars))+' '+str(self.Gcnt)+'\n\n')
         sat = self.solve(pf, respf)
         pf.write('0\n')
+        json.dump(self.map_cc, map_cc)
         spent = time.time() - start_time
         answer = self.output_answer(sat, spent)
         logger.info('Equation is {}, resolved in {:.2f} s'
@@ -77,6 +81,7 @@ class Solver:
                 self.learnts.add(learnt)
                 self.backtrack(lvl)
                 self.level = lvl
+                self.map_cc["_".join(str(i) for i in learnt)] = self.res_map[learnt][0]
                 for lit in learnt:
                     pf.write(str(lit)+' ')
                 pf.write('0\n')
