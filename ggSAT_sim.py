@@ -88,10 +88,12 @@ jobs = []
 for path in paths:
 	if sys.argv[3]=='s':
 		terminal('python3 -m pkg.main '+sys.argv[1]+' '+"_".join([str(lit) for lit in path]).replace('-','n'))
-	if sys.argv[3]=='p':
+	elif sys.argv[3]=='p':
 		p = multiprocessing.Process(target=terminal, args=('python3 -m pkg.main '+sys.argv[1]+' '+"_".join([str(lit) for lit in path]).replace('-','n'),))
 		jobs.append(p)
 		p.start()
+	else:
+		sys.exit('Choose either p (parallel exec) or s (sequential exec)')	
 
 if sys.argv[3]=='p':
 	for proc in jobs:
