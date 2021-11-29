@@ -35,7 +35,7 @@ class Solver:
         pf = open(out_dir+dec+'.proof','w')
         respf = open(out_dir+dec+'.res','w')
         map_cc = open(out_dir+dec+'.json','w')
-        respf.write('%RESA32 '+str(len(self.vars))+' '+str(self.Gcnt)+'\n\n')
+        respf.write('%RESA32  '+str(len(self.vars))+'  '+str(self.Gcnt)+'\n\n')
         sat = self.solve(pf, respf)
         pf.write('0\n')
         json.dump(self.map_cc, map_cc)
@@ -354,7 +354,10 @@ class Solver:
             final_lits.update(prev_level_lits)
             final_lits.update(set(pool_lits))               
             final_lits = frozenset(list(final_lits))
-            self.res_map[final_lits] = [self.Gcnt, last_assigned, self.res_map[frozenset(list(pool_clause))][0], self.res_map[frozenset(list(old_pool_lits))][0]]
+            if -abs(last_assigned) in pool_clause:
+                 self.res_map[final_lits] = [self.Gcnt, abs(last_assigned), self.res_map[frozenset(list(pool_clause))][0], self.res_map[frozenset(list(old_pool_lits))][0]]
+            else:
+                 self.res_map[final_lits] = [self.Gcnt, abs(last_assigned), self.res_map[frozenset(list(old_pool_lits))][0], self.res_map[frozenset(list(pool_clause))][0]]
             
             respf.write(str(self.res_map[final_lits][0])+' '+str(self.res_map[final_lits][1])+' '+str(self.res_map[final_lits][2])+' '+str(self.res_map[final_lits][3])+' '+str(len(final_lits))+' '+' '.join([str(lits) for lits in final_lits])+' '+str(len(final_lits))+'\n')
             logger.fine('done lits: %s', done_lits)
