@@ -1,4 +1,4 @@
-###Resolution Proof Generator for ggSAT type solvers (Proof-of-concept)
+#Resolution Proof Generator for ggSAT type solvers (Proof-of-concept)
 
 $ python3 run_expt.py - to run ggSAT\_sim, proof\_generation and proof\_checking on 250 instances of uu50-218.
 
