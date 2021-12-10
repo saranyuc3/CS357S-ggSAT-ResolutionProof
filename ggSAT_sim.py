@@ -3,6 +3,8 @@ import sys
 import random
 from subprocess import call
 import multiprocessing
+import time
+import json
 
 tree = {}
 
@@ -91,18 +93,26 @@ temp_lit.remove(str(dec_lit))
 
 buildtree(temp_lit, str(dec_lit), min(int(sys.argv[2])-1,len(literals)-1))
 
+
 paths = []
 
-
-for key in tree.keys():
-    if tree[key][0:2]==[None,None]:
-    	paths.append(tree[key][2].copy())
-    	temp = tree[key][2][:-1].copy()
-    	temp.append('-'+key.replace('$',''))
-    	paths.append(temp)
+try:
+	with open(sys.argv[5],'r') as f:
+		paths = json.load(f)
+	
+except IndexError:
+	for key in tree.keys():
+		if tree[key][0:2]==[None,None]:
+			paths.append(tree[key][2].copy())
+			temp = tree[key][2][:-1].copy()
+			temp.append('-'+key.replace('$',''))
+			paths.append(temp)
+	
 
 jobs = []
 os.system('mkdir '+sys.argv[3])
+os.system('mkdir outputs/tmp/')
+t1 = time.time()
 for path in paths:
 	if sys.argv[4]=='s':
 		terminal('python3 -m pkg.main '+sys.argv[1]+' '+sys.argv[3]+' '+"_".join([str(lit) for lit in path]).replace('-','n'))
@@ -117,4 +127,23 @@ if sys.argv[4]=='p':
 	for proc in jobs:
 		proc.join()
 
+t2 = time.time()
+t3 = time.time()
+for path in paths:
+	if sys.argv[4]=='s':
+		terminal('python3 -m pkg3.main '+sys.argv[1]+' outputs/tmp/ '+"_".join([str(lit) for lit in path]).replace('-','n'))
+	elif sys.argv[4]=='p':
+		p = multiprocessing.Process(target=terminal, args=('python3 -m pkg.main '+sys.argv[1]+' outputs/tmp/ '+"_".join([str(lit) for lit in path]).replace('-','n'),))
+		jobs.append(p)
+		p.start()
+	else:
+		sys.exit('Choose either p (parallel exec) or s (sequential exec)')	
+if sys.argv[4]=='p':
+	for proc in jobs:
+		proc.join()
+
+t4 = time.time()
+with open(sys.argv[3]+'/time.txt','w') as f:
+	f.write("Instrumented time:{}\n".format(t2-t1))
+	f.write("Uninstrumented time:{}\n".format(t4-t3))
 

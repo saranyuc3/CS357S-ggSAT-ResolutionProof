@@ -1,155 +1,224 @@
-import glob 
-import sys
+import glob
 import os
-import shutil
+import sys
+import re
+import random
+from subprocess import call
+import multiprocessing
 
-def combine_proofs(clause_set_1, clause_set_2, branch_variable):
-  '''
-  Clause_set_1 = conflict clauses (list of strings) of branch_variable branch
-  clause_set_2 = conflict_clauses (list of strings) of ~branch_variable branch
-  returns: set of combined clauses
-  '''
+tree = {}
 
-  branch_variable_n = branch_variable[1:] if branch_variable[0] == "-" else "-" + branch_variable
+res_proof = {}
+
+leaf_res = {}
+
+
+Gcnt = 0
+
+respf = 0
+
+def traverseTree(parent):    
+    global tree
+    global respf
+    global leaf_res
+    global Gcnt
+    litL = tree[parent][0]
+    litR = tree[parent][1]
+    if litL != None:
+        traverseTree(litL)
+    if litR != None:
+        traverseTree(litR)
+    Gcnt+=1
+    if litL==None and litR==None:
+        nmL = '_'.join(tree[parent][2])+'_-'+parent.replace('$','')
+        nmR = '_'.join(tree[parent][2])+'_'+parent.replace('$','')
+        flag1 = 1
+        flag2 = 1
+        r1 = set(leaf_res[nmL][1])
+        try:
+            r1.remove(parent.replace('$',''))
+        except:
+            flag1 = 0
+        r2 = set(leaf_res[nmR][1])
+        try:
+            r2.remove('-'+parent.replace('$',''))
+        except:
+            flag2 = 0
+        if flag1==1 and flag2==1:    
+            resolve = r1.union(r2)
+            respf.write(str(Gcnt)+' '+parent.replace('$','')+' '+str(leaf_res[nmR][0])+' '+str(leaf_res[nmL][0])+' '+str(len(resolve))+' '+' '.join([i for i in resolve])+' '+str(len(resolve))+'\n')	
+            tree[parent].append([Gcnt, resolve])
+        elif flag1==0:
+            tree[parent].append([leaf_res[nmL][0], leaf_res[nmL][1]])
+            Gcnt-=1
+        elif flag2==0:
+            Gcnt-=1
+            tree[parent].append([leaf_res[nmR][0], leaf_res[nmR][1]])
+        
+    else: 
+        flag1 = 1
+        flag2 = 1
+        flag3 = 1
+        flag4 = 1
+        if tree[parent][0]!=None:        
+            r1 = set(tree[tree[parent][0]][3][1])
+        else:
+            nmL = '_'.join(tree[parent][2])+'_-'+parent.replace('$','')
+            r1 = set(leaf_res[nmL][1])
+            flag3 = 0
+        try:
+            r1.remove(parent.replace('$',''))
+        except:
+            flag1 = 0
+        if tree[parent][1]!=None:        
+            r2 = set(tree[tree[parent][1]][3][1])
+        else:
+            nmR = '_'.join(tree[parent][2])+'_'+parent.replace('$','')
+            r2 = set(leaf_res[nmR][1])
+            flag4 = 0
+        try:
+            r2.remove('-'+parent.replace('$',''))
+        except:
+            flag2 = 0
+        if flag1==1 and flag2==1:    
+            resolve = r1.union(r2)
+            respf.write(str(Gcnt)+' '+parent.replace('$','')+' '+str(tree[tree[parent][1]][3][0] if flag4==1 else leaf_res[nmR][0])+' '+str(tree[tree[parent][0]][3][0] if flag3==1 else leaf_res[nmL][0])+' '+str(len(resolve))+' '+' '.join([i for i in resolve])+' '+str(len(resolve))+'\n')	
+            tree[parent].append([Gcnt, resolve])
+        elif flag1==0:
+            if flag3==1:
+               tree[parent].append([tree[tree[parent][0]][3][0], tree[tree[parent][0]][3][1]])
+            else:
+               tree[parent].append([leaf_res[nmL][0], leaf_res[nmL][1]])
+            Gcnt-=1
+        elif flag2==0:
+            Gcnt-=1
+            if flag4==1:
+               tree[parent].append([tree[tree[parent][1]][3][0], tree[tree[parent][1]][3][1]])
+            else:
+               tree[parent].append([leaf_res[nmR][0], leaf_res[nmR][1]])
+    return 
+
+
+
+def terminal(string):
+	os.system(string)
+
+
   
-  for i in range(len(clause_set_1)):
-    clause_set_1[i] = clause_set_1[i][:-2]+branch_variable_n+" 0\n"
+if len(sys.argv) != 3:
+	print("Usage: python3 run.py path_to_proof_files path_to_problem_file")
+	sys.exit(0)
   
+path = sys.argv[1]
+path = path if path[-1] == "/" else path+"/"
+files = glob.glob(path+"*.proof")
 
-  for i in range(len(clause_set_2)):
-    clause_set_2[i] = clause_set_2[i][:-2]+branch_variable+" 0\n"
-  #print(clause_set_1)
-  return clause_set_1 + clause_set_2 + ["0\n"]
+jobs = []
 
+for fil in files:
+#	terminal('python3 -m pkg2.main '+sys.argv[2]+' '+fil)
+	p = multiprocessing.Process(target=terminal, args=('python3 -m pkg2.main '+sys.argv[2]+' '+fil,))
+	jobs.append(p)
+	p.start()
 
-def sorting_key(tup):
-  return -tup[0]
+for proc in jobs:
+	proc.join()
 
+files = glob.glob(path+"*.res")
 
-def order_proofs(list_of_proof_files):
-  '''
-  decides order in which proofs must be combined
-  returns: ordered list of tuples denoting proof files to be joined together
-  '''
-  temp = []
-  ord_list = []
-  
-  for fil in list_of_proof_files:
-    fil = fil[:-6]
-    
-    path = "/".join(fil.split("/")[:-1])
-
-    fil = fil.split("/")[-1]
-    lenfil = len(fil.split("_"))
-    temp.append((len(fil), fil))
-
-  temp.sort(key=sorting_key)
-  
-  for fil_l, fil in temp:
-    fil_temp = fil.split("_")
-    #print(fil_temp)
-    if "_" in fil:
-      fil_n = fil_temp[0] #first literal
-      for l in fil_temp[1:-1]:
-        fil_n = fil_n + "_" + l # second literal to second last literal
-      fil_n = fil_n + "_"
-    else:
-      fil_n = ""
-
-    #negation of last literal
-    neg_lit = fil_temp[-1][1:] if fil_temp[-1][0] == "n" else "n" + fil_temp[-1]
-    
-    if fil_n != "":
-      temp.append((len(fil_n),fil_n[:-1])) 
-
-    fil_n = fil_n + neg_lit # negation of  last literal added
-    
-    ord_list.append((fil+".proof", fil_n+".proof", path+"/"))
-    temp.sort(key=sorting_key)
-  
-  return ord_list
-     
-def write_proof(f, proof):
-  for lemma in proof:
-    f.write(lemma)
+respf = open(re.sub('\.(\S+)','.proof',sys.argv[2]),'w')
 
 
-if __name__ == "__main__":
-  
-  if len(sys.argv) != 2:
-    print("Usage: python3 run.py path/to/proof/files")
-    print("Proof files must have extension .proof")
-    sys.exit(0)
-  
-  path = sys.argv[1]
-  path = path if path[-1] == "/" else path+"/"
-  files = glob.glob(path+"*.proof")
+for fil in files:
+	res_proof = []
+	leaf = fil.split('/')[-1].replace('n','-').rstrip('.res')
+	with open(fil,'r') as f:
+		data = f.read().split('\n')
+		thres = int(re.match('\%RESA32  \d+  (\d+)',data[0]).group(1))
+		res = data[-2].split(' ')
+		if 'PROBLEMCLS:' == res[0]:
+			leaf_res[leaf] = [int(res[1]),res[6:-1]] 
+			continue
+		if Gcnt==0:
+			Gcnt = thres
+			respf.write(data[0].replace('%RESA32  ','%RESA32   \n  ')+'\n                                                                               \n                                                                               \n                                                                               \n')
+		for cls in data[2:-1]:
+			nw_cls = cls.split(' ')
+			if 'PROBLEMCLS:'==nw_cls[0]:
+				continue
+			nw_cls[0] = str(int(nw_cls[0])-thres+Gcnt)
+			nw_cls[2] = str(int(nw_cls[2])-thres+Gcnt) if int(nw_cls[2])>thres else nw_cls[2]
+			nw_cls[3] = str(int(nw_cls[3])-thres+Gcnt) if int(nw_cls[3])>thres else nw_cls[3]
+			respf.write(' '.join(nw_cls)+'\n')
+		leaf_res[leaf] = [int(res[0])-thres+Gcnt,res[5:-1]]
+		Gcnt = Gcnt+int(res[0])-thres
+	
+for fil in files:
+	trail = fil.split('/')[-1].replace('n','-').rstrip('.res').split('_')
+	parent = trail[0]
+	trl = []
+	for lit in range(len(trail)-1,-1,-1):
+		if '-' in trail[lit]:
+			if trail[lit][1:] not in tree.keys():
+				if trl!=[]: 
+					tree[trail[lit][1:]]= [trl[len(trail)-lit-2],None,trail[:lit]]
+					trl.append(trail[lit][1:])
+				else:
+					tree[trail[lit][1:]]= [None,None,trail[:lit]]
+					trl.append(trail[lit][1:])
+			else:
+				nw_name = trail[lit][1:]
+				while(1):
+					if nw_name in tree.keys():
+						if trail[:lit]==tree[nw_name][2]:
+							if trl!=[]:
+								tree[nw_name][0]= trl[len(trail)-lit-2]
+								trl.append(nw_name)
+							else:
+								tree[nw_name][0]= None
+								trl.append(nw_name)
+							break
+						else:
+							nw_name = nw_name + '$'
+					else:
+						if trl!=[]:
+							tree[nw_name]= [trl[len(trail)-lit-2],None,trail[:lit]]
+							trl.append(nw_name)
+						else:
+							tree[nw_name]= [None,None,trail[:lit]]
+							trl.append(nw_name)
+						break
 
-  print("Making directory temp-work")
-  
-  if os.path.exists("./temp-work"):
-    shutil.rmtree("./temp-work")
+		else:			
+			if trail[lit] not in tree.keys():
+				if trl!=[]: 
+					tree[trail[lit]]= [None,trl[len(trail)-lit-2],trail[:lit]]
+					trl.append(trail[lit])
+				else:
+					tree[trail[lit]]= [None,None,trail[:lit]]
+					trl.append(trail[lit])
+			else:
+				nw_name = trail[lit]
+				while(1):
+					if nw_name in tree.keys():
+						if trail[:lit]==tree[nw_name][2]:
+							if trl!=[]:
+								tree[nw_name][1]= trl[len(trail)-lit-2]
+								trl.append(nw_name)
+							else:
+								tree[nw_name][1]= None
+								trl.append(nw_name)
+							break
+						else:
+							nw_name = nw_name + '$'
+					else:
+						if trl!=[]:
+							tree[nw_name]= [None,trl[len(trail)-lit-2],trail[:lit]]
+							trl.append(nw_name)
+						else:
+							tree[nw_name]= [None,None,trail[:lit]]
+							trl.append(nw_name)
+						break
 
-  os.mkdir("./temp-work")
-  
-  for f in files:
-    shutil.copy(f, "./temp-work/")
-  
-  files = glob.glob("./temp-work/*.proof")
 
-  if files is None:
-    print("Proof files not found")
-    print("Proof files must have extension .proof")
-    sys.exit(0)
-
-  ordered_proof = order_proofs(files)
-  '''
-  for o in ordered_proof:
-    print(o)
-  '''
-  #print(ordered_proof)
-  #sys.exit()
-  for tup in ordered_proof:
-    #read proofs
-    proof_file1 = tup[0]
-    proof_file2 = tup[1]
-    path = tup[2]
-    decision_lits = proof_file1[:-6].split("_")
-    decision_lit = decision_lits[-1] if decision_lits[-1][0]!="n" else "-" + decision_lits[-1][1:]
-    if len(decision_lits) > 1:
-      proof_out_file = "_".join(decision_lits[:-1]) + ".proof"
-    else:
-      proof_out_file = "final.proof"
-    #print(proof_out_file)
-    temp_1 = []
-    temp_2 = []
-    proof_1 = []
-    proof_2 = []
-    proof_out = []
-    with open(path+proof_file1,"r") as f:
-      temp_1 = f.readlines()
-
-    with open(path+proof_file2,"r") as f:
-      temp_2 = f.readlines()
-    
-    # delete deletion clauses
-    for l in temp_1:
-      if l[0] != "d":
-        proof_1.append(l)
-    
-    for l in temp_2:
-      if l[0] != "d":
-        proof_2.append(l)
-    #print(proof_file1)
-    #print(proof_1)
-    #print(proof_2)
-    #print(decision_lit)
-    #proof_1 = [ l if l[0]!="d" for l in proof_1]
-    #proof_2 = [ l in l[0]!="d" for l in proof_2]
-
-    proof_out = combine_proofs(proof_1, proof_2, decision_lit)
-    #print(proof_out)
-    #sys.exit()
-    with open(path+proof_out_file,"w") as f:
-      write_proof(f, proof_out)
-
+traverseTree(parent.replace('-',''))
